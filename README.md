@@ -7,3 +7,4 @@ This project is based on [Open Saas](https://opensaas.sh) template and consists 
 3. `blog` - Your blog / docs, built with [Astro](https://docs.astro.build) based on [Starlight](https://starlight.astro.build/) template.
 
 For more details, check READMEs of each respective directory!
+# ProofWork
