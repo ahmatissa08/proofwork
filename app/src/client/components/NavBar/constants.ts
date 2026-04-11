@@ -8,13 +8,12 @@ const staticNavigationItems: NavigationItem[] = [
 ];
 
 export const marketingNavigationItems: NavigationItem[] = [
-  { name: "Features", to: "/#features" },
-  { name: "Pricing", to: routes.PricingPageRoute.to },
+  { name: "Fonctionnalités", to: "/#features" },
+  { name: "Tarifs", to: routes.PricingPageRoute.to },
   ...staticNavigationItems,
 ] as const;
 
 export const demoNavigationitems: NavigationItem[] = [
-  { name: "AI Scheduler", to: routes.DemoAppRoute.to },
-  { name: "File Upload", to: routes.FileUploadRoute.to },
+  { name: "Mes projets", to: routes.ProofWorkRoute.to },
   ...staticNavigationItems,
 ] as const;

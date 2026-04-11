@@ -2,237 +2,158 @@ import { CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "wasp/client/auth";
-import {
-  generateCheckoutSession,
-  getCustomerPortalUrl,
-  useQuery,
-} from "wasp/client/operations";
-import { Alert, AlertDescription } from "../client/components/ui/alert";
-import { Button } from "../client/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardTitle,
-} from "../client/components/ui/card";
-import { cn } from "../client/utils";
-import {
-  PaymentPlanId,
-  paymentPlans,
-  prettyPaymentPlanName,
-  SubscriptionStatus,
-} from "./plans";
+import { generateCheckoutSession, getCustomerPortalUrl, useQuery } from "wasp/client/operations";
+import { PaymentPlanId, paymentPlans, prettyPaymentPlanName, SubscriptionStatus } from "./plans";
 
-const bestDealPaymentPlanId: PaymentPlanId = PaymentPlanId.Pro;
-
-interface PaymentPlanCard {
-  name: string;
-  price: string;
-  description: string;
-  features: string[];
-}
-
-export const paymentPlanCards: Record<PaymentPlanId, PaymentPlanCard> = {
-  [PaymentPlanId.Hobby]: {
-    name: prettyPaymentPlanName(PaymentPlanId.Hobby),
-    price: "$9.99",
-    description: "All you need to get started",
-    features: ["Limited monthly usage", "Basic support"],
+const plans = [
+  {
+    id: PaymentPlanId.Hobby,
+    name: "Free",
+    price: "$0",
+    period: "pour toujours",
+    description: "Pour démarrer et tester ProofWork",
+    features: ["1 projet", "1 client", "Intégration GitHub", "Rapport manuel"],
+    cta: "Commencer gratuitement",
+    highlighted: false,
   },
-  [PaymentPlanId.Pro]: {
-    name: prettyPaymentPlanName(PaymentPlanId.Pro),
-    price: "$19.99",
-    description: "Our most popular plan",
-    features: ["Unlimited monthly usage", "Priority customer support"],
+  {
+    id: PaymentPlanId.Pro,
+    name: "Pro",
+    price: "$19",
+    period: "par mois",
+    description: "Pour les freelances actifs",
+    features: [
+      "Projets illimités",
+      "Clients illimités",
+      "Toutes les intégrations",
+      "Résumés IA automatiques",
+      "Envoi hebdomadaire auto",
+      "Branding personnalisé",
+    ],
+    cta: "Démarrer l'essai gratuit",
+    highlighted: true,
   },
-  [PaymentPlanId.Credits10]: {
-    name: prettyPaymentPlanName(PaymentPlanId.Credits10),
-    price: "$9.99",
-    description: "One-time purchase of 10 credits for your account",
-    features: ["Use credits for e.g. OpenAI API calls", "No expiration date"],
+  {
+    id: PaymentPlanId.Credits10,
+    name: "Agency",
+    price: "$49",
+    period: "par mois",
+    description: "Pour les agences et équipes",
+    features: [
+      "Tout ce qu'il y a dans Pro",
+      "5 membres d'équipe",
+      "Rapports en marque blanche",
+      "Support prioritaire",
+    ],
+    cta: "Nous contacter",
+    highlighted: false,
   },
-};
+];
 
 const PricingPage = () => {
-  const [isPaymentLoading, setIsPaymentLoading] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const { data: user } = useAuth()
+  const navigate = useNavigate()
 
-  const { data: user } = useAuth();
-  const isUserSubscribed =
-    !!user &&
-    !!user.subscriptionStatus &&
-    user.subscriptionStatus !== SubscriptionStatus.Deleted;
+  const isUserSubscribed = !!user && !!user.subscriptionStatus &&
+    user.subscriptionStatus !== SubscriptionStatus.Deleted
 
-  const {
-    data: customerPortalUrl,
-    isLoading: isCustomerPortalUrlLoading,
-    error: customerPortalUrlError,
-  } = useQuery(getCustomerPortalUrl, { enabled: isUserSubscribed });
+  const { data: customerPortalUrl } = useQuery(getCustomerPortalUrl, { enabled: isUserSubscribed })
 
-  const navigate = useNavigate();
-
-  async function handleBuyNowClick(paymentPlanId: PaymentPlanId) {
-    if (!user) {
-      navigate("/login");
-      return;
-    }
+  async function handleBuyNowClick(planId: PaymentPlanId) {
+    if (!user) { navigate("/login"); return }
     try {
-      setIsPaymentLoading(true);
-
-      const checkoutResults = await generateCheckoutSession(paymentPlanId);
-
-      if (checkoutResults?.sessionUrl) {
-        window.open(checkoutResults.sessionUrl, "_self");
-      } else {
-        throw new Error("Error generating checkout session URL");
-      }
-    } catch (error: unknown) {
-      console.error(error);
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage("Error processing payment. Please try again later.");
-      }
-      setIsPaymentLoading(false); // We only set this to false here and not in the try block because we redirect to the checkout url within the same window
+      setIsPaymentLoading(true)
+      const result = await generateCheckoutSession(planId)
+      if (result?.sessionUrl) window.open(result.sessionUrl, "_self")
+      else throw new Error("Erreur lors de la création de la session")
+    } catch (error: any) {
+      setErrorMessage(error.message || "Erreur de paiement")
+      setIsPaymentLoading(false)
     }
   }
 
-  const handleCustomerPortalClick = () => {
-    if (!user) {
-      navigate("/login");
-      return;
-    }
-
-    if (customerPortalUrlError) {
-      setErrorMessage("Error fetching Customer Portal URL");
-      return;
-    }
-
-    if (!customerPortalUrl) {
-      setErrorMessage(`Customer Portal does not exist for user ${user.id}`);
-      return;
-    }
-
-    window.open(customerPortalUrl, "_blank");
-  };
-
   return (
-    <div className="py-10 lg:mt-10">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div id="pricing" className="mx-auto max-w-4xl text-center">
-          <h2 className="text-foreground mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
-            Pick your <span className="text-primary">pricing</span>
-          </h2>
+    <div className='min-h-screen bg-gray-50 py-16'>
+     <div className='max-w-5xl mx-auto px-6 text-center'>
+        {/* Header */}
+        <div className='text-center mb-12'>
+          <h1 className='text-3xl font-semibold text-gray-900 tracking-tight mb-3'>
+            Tarifs simples et transparents
+          </h1>
+          <p className='text-gray-500 text-base max-w-xl mx-auto'>
+            Commencez gratuitement. Passez au Pro quand vous êtes prêt. Aucune surprise.
+          </p>
         </div>
-        <p className="text-muted-foreground mx-auto mt-6 max-w-2xl text-center text-lg leading-8">
-          Choose between Stripe, LemonSqueezy or Polar as your payment provider.
-          Just add your Product IDs! Try it out below with test credit card
-          number <br />
-          <span className="bg-muted text-muted-foreground rounded-md px-2 py-1 font-mono text-sm">
-            4242 4242 4242 4242 4242
-          </span>
-        </p>
+
         {errorMessage && (
-          <Alert variant="destructive" className="mt-8">
-            <AlertDescription>{errorMessage}</AlertDescription>
-          </Alert>
+          <div className='bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-8 text-center'>
+            {errorMessage}
+          </div>
         )}
-        <div className="isolate mx-auto mt-16 grid max-w-md grid-cols-1 gap-y-8 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-3 lg:gap-x-8">
-          {Object.values(PaymentPlanId).map((planId) => (
-            <Card
-              key={planId}
-              className={cn(
-                "relative flex grow flex-col justify-between overflow-hidden transition-all duration-300 hover:shadow-lg",
-                {
-                  "ring-primary bg-transparent! ring-2":
-                    planId === bestDealPaymentPlanId,
-                  "ring-border ring-1 lg:my-8":
-                    planId !== bestDealPaymentPlanId,
-                },
-              )}
-            >
-              {planId === bestDealPaymentPlanId && (
-                <div
-                  className="absolute top-0 right-0 -z-10 h-full w-full transform-gpu blur-3xl"
-                  aria-hidden="true"
-                >
-                  <div
-                    className="from-primary/40 via-primary/20 to-primary/10 absolute h-full w-full bg-linear-to-br opacity-30"
-                    style={{
-                      clipPath: "circle(670% at 50% 50%)",
-                    }}
-                  />
+
+        {/* Plans */}
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-4xl mx-auto'>
+          {plans.map(plan => (
+            <div key={plan.id} className={`bg-white rounded-xl p-6 flex flex-col shadow-sm transition ${
+              plan.highlighted
+                ? 'border-2 border-gray-900 relative'
+                : 'border border-gray-200'
+            }`}>
+              {plan.highlighted && (
+                <div className='absolute -top-3 left-1/2 -translate-x-1/2'>
+                  <span className='bg-gray-900 text-white text-xs font-semibold px-3 py-1 rounded-full'>
+                    Le plus populaire
+                  </span>
                 </div>
               )}
-              <CardContent className="h-full justify-between p-8 xl:p-10">
-                <div className="flex items-center justify-between gap-x-4">
-                  <CardTitle
-                    id={planId}
-                    className="text-foreground text-lg leading-8 font-semibold"
-                  >
-                    {paymentPlanCards[planId].name}
-                  </CardTitle>
+
+              <div className='mb-6'>
+                <p className='text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1'>{plan.name}</p>
+                <div className='flex items-baseline gap-1 mb-2'>
+                  <span className='text-3xl font-bold text-gray-900'>{plan.price}</span>
+                  <span className='text-gray-400 text-sm'>{plan.period}</span>
                 </div>
-                <p className="text-muted-foreground mt-4 text-sm leading-6">
-                  {paymentPlanCards[planId].description}
-                </p>
-                <p className="mt-6 flex items-baseline gap-x-1">
-                  <span className="text-foreground text-4xl font-bold tracking-tight">
-                    {paymentPlanCards[planId].price}
-                  </span>
-                  <span className="text-muted-foreground text-sm leading-6 font-semibold">
-                    {paymentPlans[planId].effect.kind === "subscription" &&
-                      "/month"}
-                  </span>
-                </p>
-                <ul
-                  role="list"
-                  className="text-muted-foreground mt-8 space-y-3 text-sm leading-6"
-                >
-                  {paymentPlanCards[planId].features.map((feature) => (
-                    <li key={feature} className="flex gap-x-3">
-                      <CheckCircle
-                        className="text-primary h-5 w-5 flex-none"
-                        aria-hidden="true"
-                      />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter>
-                {isUserSubscribed ? (
-                  <Button
-                    onClick={handleCustomerPortalClick}
-                    disabled={isCustomerPortalUrlLoading}
-                    aria-describedby="manage-subscription"
-                    variant={
-                      planId === bestDealPaymentPlanId ? "default" : "outline"
-                    }
-                    className="w-full"
-                  >
-                    Manage Subscription
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => handleBuyNowClick(planId)}
-                    aria-describedby={planId}
-                    variant={
-                      planId === bestDealPaymentPlanId ? "default" : "outline"
-                    }
-                    className="w-full"
-                    disabled={isPaymentLoading}
-                  >
-                    {!!user ? "Buy plan" : "Log in to buy plan"}
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
+                <p className='text-gray-500 text-sm'>{plan.description}</p>
+              </div>
+
+              <ul className='flex flex-col gap-2.5 mb-8 flex-1'>
+                {plan.features.map(feature => (
+                  <li key={feature} className='flex items-start gap-2 text-sm text-gray-600'>
+                    <CheckCircle className='w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5' />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => handleBuyNowClick(plan.id)}
+                disabled={isPaymentLoading}
+                className={`w-full py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-50 ${
+                  plan.highlighted
+                    ? 'bg-gray-900 text-white hover:bg-gray-700'
+                    : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {isUserSubscribed ? 'Gérer l\'abonnement' : !user ? 'Se connecter' : plan.cta}
+              </button>
+            </div>
           ))}
         </div>
+
+        {/* Garantie */}
+        <div className='text-center mt-10'>
+          <p className='text-gray-400 text-sm'>
+            ✓ Aucune carte bancaire pour le plan gratuit &nbsp;·&nbsp;
+            ✓ Annulation à tout moment &nbsp;·&nbsp;
+            ✓ Support par email inclus
+          </p>
+        </div>
+
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default PricingPage;
+export default PricingPage

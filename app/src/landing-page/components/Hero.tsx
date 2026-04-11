@@ -1,7 +1,9 @@
 import { Link as WaspRouterLink, routes } from "wasp/client/router";
 import { Button } from "../../client/components/ui/button";
+import { useAuth } from "wasp/client/auth";
 
 export default function Hero() {
+  const { data: user } = useAuth()
   return (
     <div className="relative w-full pt-14">
       <TopGradient />
@@ -27,8 +29,8 @@ export default function Hero() {
                 </WaspRouterLink>
               </Button>
               <Button size="lg" variant="default" asChild>
-                <WaspRouterLink to={routes.SignupRoute.to}>
-                  Commencer gratuitement <span aria-hidden="true">→</span>
+                <WaspRouterLink to={user ? routes.ProofWorkRoute.to : routes.SignupRoute.to}>
+                  {user ? 'Accéder au dashboard' : 'Commencer gratuitement'} <span aria-hidden="true">→</span>
                 </WaspRouterLink>
               </Button>
             </div>
